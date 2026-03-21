@@ -1,121 +1,200 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useMemo, useState } from 'react';
+import { Alert, Box, Container, Grid, Stack } from '@mui/material';
+import AppHeader from './components/AppHeader';
+import AudioPlayerCard from './components/AudioPlayerCard';
+import EmptyState from './components/EmptyState';
+import EvaluationActions from './components/EvaluationActions';
+import ModeSelector from './components/ModeSelector';
+import RecorderCard from './components/RecorderCard';
+import ReviewSummaryCard from './components/ReviewSummaryCard';
+import SampleNavigator from './components/SampleNavigator';
+import StatusBanner from './components/StatusBanner';
+import TranscriptReviewer from './components/TranscriptReviewer';
+import useAudioRecorder from './hooks/useAudioRecorder';
+import useEvaluationSession from './hooks/useEvaluationSession';
+import { MODES } from './constants';
+import { downloadJson } from './utils/downloadUtils';
+import { transcribeWithKhaya } from './api/KhayaApi';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const {
+    mode,
+    setMode,
+    samples,
+    currentIndex,
+    currentItem,
+    results,
+    loadingSamples,
+    samplesError,
+    loadPreRecordedSample,
+    setMicrophoneItem,
+    toggleWord,
+    clearSelections,
+    saveCurrentResult,
+    nextSample,
+    previousSample,
+  } = useEvaluationSession();
+
+  const {
+    isRecording,
+    audioBlob,
+    audioUrl,
+    error: recorderError,
+    startRecording,
+    stopRecording,
+    resetRecording,
+  } = useAudioRecorder();
+
+  const [transcribeError, setTranscribeError] = useState('');
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const handleModeChange = (nextMode) => {
+    setSuccessMessage('');
+    setTranscribeError('');
+    setMode(nextMode);
+
+    if (nextMode === MODES.PRE_RECORDED && samples.length > 0) {
+      loadPreRecordedSample(currentIndex);
+    }
+  };
+
+  const handleTranscribe = async () => {
+    if (!audioBlob) return;
+
+    try {
+      setTranscribeError('');
+      setSuccessMessage('');
+      setIsTranscribing(true);
+
+      const { transcript } = await transcribeWithKhaya(audioBlob);
+
+      if (!transcript?.trim()) {
+        throw new Error('No transcript was returned from the API.');
+      }
+
+      setMicrophoneItem({
+        transcript,
+        audioUrl,
+      });
+
+      setSuccessMessage('Microphone audio transcribed successfully.');
+    } catch (error) {
+      setTranscribeError(error.message || 'Transcription failed.');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const handleSave = () => {
+    saveCurrentResult();
+    setSuccessMessage('Current review saved.');
+  };
+
+  const handleExport = () => {
+    downloadJson('asr-evaluation-results.json', results);
+  };
+
+  const currentTokens = useMemo(() => currentItem?.tokens || [], [currentItem]);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <Box sx={{ minHeight: '100vh', py: 4 }}>
+      <Container maxWidth="xl">
+        <AppHeader />
 
-      <div className="ticks"></div>
+        <Stack spacing={3}>
+          <ModeSelector mode={mode} onChange={handleModeChange} />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          {samplesError ? <Alert severity="error">{samplesError}</Alert> : null}
+          {recorderError ? <Alert severity="error">{recorderError}</Alert> : null}
+          {transcribeError ? <Alert severity="error">{transcribeError}</Alert> : null}
+          <StatusBanner severity="success" message={successMessage} />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={8}>
+              <Stack spacing={3}>
+                {mode === MODES.PRE_RECORDED ? (
+                  loadingSamples ? (
+                    <EmptyState
+                      title="Loading samples"
+                      description="Please wait while the pre-recorded evaluation set is being prepared."
+                    />
+                  ) : currentItem ? (
+                    <>
+                      <AudioPlayerCard
+                        title={currentItem.title}
+                        audioUrl={currentItem.audioUrl}
+                      />
+                      <TranscriptReviewer
+                        tokens={currentTokens}
+                        onToggleWord={toggleWord}
+                      />
+                    </>
+                  ) : (
+                    <EmptyState
+                      title="No sample available"
+                      description="Add your sample data and audio files to begin."
+                    />
+                  )
+                ) : (
+                  <>
+                    <RecorderCard
+                      isRecording={isRecording}
+                      audioUrl={audioUrl}
+                      error={recorderError}
+                      isTranscribing={isTranscribing}
+                      onStart={startRecording}
+                      onStop={stopRecording}
+                      onReset={resetRecording}
+                      onTranscribe={handleTranscribe}
+                    />
+
+                    {currentItem && currentItem.mode === MODES.MICROPHONE ? (
+                      <>
+                        <AudioPlayerCard
+                          title={currentItem.title}
+                          audioUrl={currentItem.audioUrl}
+                        />
+                        <TranscriptReviewer
+                          tokens={currentTokens}
+                          onToggleWord={toggleWord}
+                        />
+                      </>
+                    ) : (
+                      <EmptyState
+                        title="No transcript yet"
+                        description="Record speech and send it to the Khaya API to start review."
+                      />
+                    )}
+                  </>
+                )}
+              </Stack>
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Stack spacing={3}>
+                {mode === MODES.PRE_RECORDED ? (
+                  <SampleNavigator
+                    currentIndex={currentIndex}
+                    total={samples.length}
+                    onPrevious={previousSample}
+                    onNext={nextSample}
+                  />
+                ) : null}
+
+                <ReviewSummaryCard tokens={currentTokens} />
+
+                <EvaluationActions
+                  onClear={clearSelections}
+                  onSave={handleSave}
+                  onExport={handleExport}
+                  disableExport={results.length === 0}
+                />
+              </Stack>
+            </Grid>
+          </Grid>
+        </Stack>
+      </Container>
+    </Box>
+  );
 }
-
-export default App
