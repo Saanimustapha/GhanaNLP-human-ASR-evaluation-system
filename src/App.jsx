@@ -108,30 +108,36 @@ export default function App() {
           <Grid container spacing={3}>
             <Grid item xs={12} md={8}>
               <Stack spacing={3}>
-                {mode === MODES.PRE_RECORDED ? (
-                  loadingSamples ? (
-                    <EmptyState
-                      title="Loading samples"
-                      description="Please wait while the pre-recorded evaluation set is being prepared."
-                    />
-                  ) : currentItem ? (
-                    <>
-                      <AudioPlayerCard
-                        title={currentItem.title}
-                        audioUrl={currentItem.audioUrl}
+                  {mode === MODES.PRE_RECORDED ? (
+                    loadingSamples ? (
+                      <EmptyState
+                        title="Loading samples"
+                        description="Please wait while the pre-recorded evaluation set is being prepared."
                       />
-                      <TranscriptReviewer
-                        tokens={currentTokens}
-                        onToggleWord={toggleWord}
+                    ) : currentItem ? (
+                      <>
+                        <AudioPlayerCard
+                          title={currentItem.title}
+                          audioUrl={currentItem.audioUrl}
+                        />
+                        <TranscriptReviewer
+                          tokens={currentTokens}
+                          onToggleWord={toggleWord}
+                        />
+                        <SampleNavigator
+                          currentIndex={currentIndex}
+                          total={samples.length}
+                          onPrevious={previousSample}
+                          onNext={nextSample}
+                        />
+                      </>
+                    ) : (
+                      <EmptyState
+                        title="No sample available"
+                        description="Add your sample data and audio files to begin."
                       />
-                    </>
+                    )
                   ) : (
-                    <EmptyState
-                      title="No sample available"
-                      description="Add your sample data and audio files to begin."
-                    />
-                  )
-                ) : (
                   <>
                     <RecorderCard
                       isRecording={isRecording}
@@ -168,15 +174,6 @@ export default function App() {
 
             <Grid item xs={12} md={4}>
               <Stack spacing={3}>
-                {mode === MODES.PRE_RECORDED ? (
-                  <SampleNavigator
-                    currentIndex={currentIndex}
-                    total={samples.length}
-                    onPrevious={previousSample}
-                    onNext={nextSample}
-                  />
-                ) : null}
-
                 <ReviewSummaryCard tokens={currentTokens} />
 
                 <EvaluationActions
