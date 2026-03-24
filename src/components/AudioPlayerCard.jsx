@@ -9,10 +9,21 @@ export default function AudioPlayerCard({ title, audioUrl }) {
         </Typography>
 
         <Stack spacing={2}>
-          <audio controls preload="metadata" style={{ width: '100%' }}>
-            <source src={audioUrl} />
-            Your browser does not support the audio element.
-          </audio>
+          {audioUrl ? (
+            <audio
+              key={audioUrl}
+              controls
+              preload="metadata"
+              style={{ width: '100%' }}
+            >
+              <source src={audioUrl} type="audio/wav" />
+              Your browser does not support the audio element.
+            </audio>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No audio available.
+            </Typography>
+          )}
         </Stack>
       </CardContent>
     </Card>
