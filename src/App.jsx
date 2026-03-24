@@ -30,7 +30,6 @@ export default function App() {
     setMicrophoneItem,
     toggleWord,
     clearSelections,
-    saveCurrentResult,
     nextSample,
     previousSample,
   } = useEvaluationSession();
@@ -86,10 +85,6 @@ export default function App() {
     }
   };
 
-  const handleSave = () => {
-    saveCurrentResult();
-    setSuccessMessage('Current review saved.');
-  };
 
   const handleExport = () => {
     downloadJson('asr-evaluation-results.json', results);
@@ -186,7 +181,6 @@ export default function App() {
 
                 <EvaluationActions
                   onClear={clearSelections}
-                  onSave={handleSave}
                   onExport={handleExport}
                   disableExport={results.length === 0}
                 />
