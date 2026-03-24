@@ -26,14 +26,6 @@ export default function EvaluationActions({
           </Button>
 
           <Button
-            variant="contained"
-            startIcon={<SaveRoundedIcon />}
-            onClick={onSave}
-          >
-            Save Current Review
-          </Button>
-
-          <Button
             variant="text"
             startIcon={<DownloadRoundedIcon />}
             onClick={onExport}
