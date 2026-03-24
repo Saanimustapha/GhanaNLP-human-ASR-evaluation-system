@@ -40,9 +40,9 @@ export default function useEvaluationSession() {
         }
 
         const formattedSamples = parsed.data.map((row, index) => ({
-          id: row.file ? row.file.replace('.wav', '') : `sample-${index + 1}`,
-          title: row.file || `Sample ${index + 1}`,
-          audioUrl: `/audio/${row.file}`,
+          id: row.file ? String(row.file).trim().replace('.wav', '') : `sample-${index + 1}`,
+          title: row.file ? String(row.file).trim() : `Sample ${index + 1}`,
+          audioUrl: `/audio/${String(row.file).trim()}`,
           transcript: row.text || '',
         }));
 
@@ -65,62 +65,61 @@ export default function useEvaluationSession() {
     loadSamples();
   }, []);
 
+  const buildTokensWithSavedSelections = (sample, existingResult) => {
+    let tokens = tokenizeTranscript(sample.transcript);
+
+    if (existingResult?.incorrectTokenIds?.length) {
+      tokens = tokens.map((token) => ({
+        ...token,
+        selected: existingResult.incorrectTokenIds.includes(token.id),
+      }));
+    }
+
+    return tokens;
+  };
+
   const loadPreRecordedSample = (index) => {
     if (!samples[index]) return;
 
     const sample = samples[index];
+    const existingResult = results.find((item) => item.id === sample.id);
 
     setCurrentIndex(index);
     setCurrentItem({
       ...sample,
       mode: MODES.PRE_RECORDED,
-      tokens: tokenizeTranscript(sample.transcript),
+      tokens: buildTokensWithSavedSelections(sample, existingResult),
     });
   };
 
   const setMicrophoneItem = ({ transcript, audioUrl }) => {
+    const id = `mic-${Date.now()}`;
+    const existingResult = results.find((item) => item.id === id);
+
     setCurrentItem({
-      id: `mic-${Date.now()}`,
+      id,
       title: 'Live Microphone Transcript',
       audioUrl,
       transcript,
       mode: MODES.MICROPHONE,
-      tokens: tokenizeTranscript(transcript),
+      tokens: buildTokensWithSavedSelections(
+        {
+          id,
+          transcript,
+        },
+        existingResult
+      ),
     });
   };
 
-  const toggleWord = (tokenId) => {
-    setCurrentItem((prev) => {
-      if (!prev) return prev;
-
-      return {
-        ...prev,
-        tokens: toggleTokenSelection(prev.tokens, tokenId),
-      };
-    });
-  };
-
-  const clearSelections = () => {
-    setCurrentItem((prev) => {
-      if (!prev) return prev;
-
-      return {
-        ...prev,
-        tokens: clearTokenSelections(prev.tokens),
-      };
-    });
-  };
-
-  const saveCurrentResult = () => {
-    if (!currentItem) return;
-
-    const selectedTokens = getSelectedTokens(currentItem.tokens);
+  const persistCurrentItem = (updatedItem) => {
+    const selectedTokens = getSelectedTokens(updatedItem.tokens);
 
     const entry = {
-      id: currentItem.id,
-      title: currentItem.title,
-      mode: currentItem.mode,
-      transcript: currentItem.transcript,
+      id: updatedItem.id,
+      title: updatedItem.title,
+      mode: updatedItem.mode,
+      transcript: updatedItem.transcript,
       incorrectWords: selectedTokens.map((token) => token.text),
       incorrectTokenIds: selectedTokens.map((token) => token.id),
       reviewedAt: new Date().toISOString(),
@@ -129,6 +128,34 @@ export default function useEvaluationSession() {
     setResults((prev) => {
       const withoutCurrent = prev.filter((item) => item.id !== entry.id);
       return [...withoutCurrent, entry];
+    });
+  };
+
+  const toggleWord = (tokenId) => {
+    setCurrentItem((prev) => {
+      if (!prev) return prev;
+
+      const updatedItem = {
+        ...prev,
+        tokens: toggleTokenSelection(prev.tokens, tokenId),
+      };
+
+      persistCurrentItem(updatedItem);
+      return updatedItem;
+    });
+  };
+
+  const clearSelections = () => {
+    setCurrentItem((prev) => {
+      if (!prev) return prev;
+
+      const updatedItem = {
+        ...prev,
+        tokens: clearTokenSelections(prev.tokens),
+      };
+
+      persistCurrentItem(updatedItem);
+      return updatedItem;
     });
   };
 
@@ -175,7 +202,6 @@ export default function useEvaluationSession() {
     setMicrophoneItem,
     toggleWord,
     clearSelections,
-    saveCurrentResult,
     nextSample,
     previousSample,
   };
