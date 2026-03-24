@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import Papa from 'papaparse';
 import { MODES } from '../constants';
 import {
   clearTokenSelections,
@@ -22,19 +23,36 @@ export default function useEvaluationSession() {
         setLoadingSamples(true);
         setSamplesError('');
 
-        const response = await fetch('/data/samples.json');
+        const response = await fetch('/data/metadata.csv');
         if (!response.ok) {
-          throw new Error('Failed to load sample data.');
+          throw new Error('Failed to load metadata CSV.');
         }
 
-        const data = await response.json();
-        setSamples(data);
+        const csvText = await response.text();
 
-        if (data.length > 0) {
+        const parsed = Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+        });
+
+        if (parsed.errors.length > 0) {
+          throw new Error(parsed.errors[0].message || 'Failed to parse CSV.');
+        }
+
+        const formattedSamples = parsed.data.map((row, index) => ({
+          id: row.file ? row.file.replace('.wav', '') : `sample-${index + 1}`,
+          title: row.file || `Sample ${index + 1}`,
+          audioUrl: `/audio/${row.file}`,
+          transcript: row.text || '',
+        }));
+
+        setSamples(formattedSamples);
+
+        if (formattedSamples.length > 0) {
           setCurrentItem({
-            ...data[0],
+            ...formattedSamples[0],
             mode: MODES.PRE_RECORDED,
-            tokens: tokenizeTranscript(data[0].transcript),
+            tokens: tokenizeTranscript(formattedSamples[0].transcript),
           });
         }
       } catch (error) {
@@ -51,6 +69,7 @@ export default function useEvaluationSession() {
     if (!samples[index]) return;
 
     const sample = samples[index];
+
     setCurrentIndex(index);
     setCurrentItem({
       ...sample,
@@ -73,6 +92,7 @@ export default function useEvaluationSession() {
   const toggleWord = (tokenId) => {
     setCurrentItem((prev) => {
       if (!prev) return prev;
+
       return {
         ...prev,
         tokens: toggleTokenSelection(prev.tokens, tokenId),
@@ -83,6 +103,7 @@ export default function useEvaluationSession() {
   const clearSelections = () => {
     setCurrentItem((prev) => {
       if (!prev) return prev;
+
       return {
         ...prev,
         tokens: clearTokenSelections(prev.tokens),
