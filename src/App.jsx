@@ -152,10 +152,6 @@ export default function App() {
 
                     {currentItem && currentItem.mode === MODES.MICROPHONE ? (
                       <>
-                        <AudioPlayerCard
-                          title={currentItem.title}
-                          audioUrl={currentItem.audioUrl}
-                        />
                         <TranscriptReviewer
                           tokens={currentTokens}
                           onToggleWord={toggleWord}
