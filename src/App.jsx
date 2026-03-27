@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Alert, Box, Container, Grid, Stack } from '@mui/material';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Box, Container, Grid, Snackbar, Stack } from '@mui/material';
 import AppHeader from './components/AppHeader';
 import AudioPlayerCard from './components/AudioPlayerCard';
 import EmptyState from './components/EmptyState';
@@ -8,7 +8,6 @@ import ModeSelector from './components/ModeSelector';
 import RecorderCard from './components/RecorderCard';
 import ReviewSummaryCard from './components/ReviewSummaryCard';
 import SampleNavigator from './components/SampleNavigator';
-import StatusBanner from './components/StatusBanner';
 import TranscriptReviewer from './components/TranscriptReviewer';
 import useAudioRecorder from './hooks/useAudioRecorder';
 import useEvaluationSession from './hooks/useEvaluationSession';
@@ -44,13 +43,27 @@ export default function App() {
     resetRecording,
   } = useAudioRecorder();
 
-  const [transcribeError, setTranscribeError] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+
+  const [toast, setToast] = useState({
+  open: false,
+  severity: 'success',
+  message: '',
+});
+
+  useEffect(() => {
+    if (samplesError) {
+      showToast(samplesError, 'error');
+    }
+  }, [samplesError]);
+
+  useEffect(() => {
+    if (recorderError) {
+      showToast(recorderError, 'error');
+    }
+  }, [recorderError]);
 
   const handleModeChange = (nextMode) => {
-    setSuccessMessage('');
-    setTranscribeError('');
     setMode(nextMode);
 
     if (nextMode === MODES.PRE_RECORDED && samples.length > 0) {
@@ -62,8 +75,6 @@ export default function App() {
     if (!audioBlob) return;
 
     try {
-      setTranscribeError('');
-      setSuccessMessage('');
       setIsTranscribing(true);
 
       const { transcript } = await transcribeWithKhaya(audioBlob);
@@ -77,17 +88,34 @@ export default function App() {
         audioUrl,
       });
 
-      setSuccessMessage('Microphone audio transcribed successfully.');
+      showToast('Microphone audio transcribed successfully.', 'success');
     } catch (error) {
-      setTranscribeError(error.message || 'Transcription failed.');
+      showToast(error.message || 'Transcription failed.', 'error');
     } finally {
       setIsTranscribing(false);
     }
   };
 
-
   const handleExport = () => {
     downloadJson('asr-evaluation-results.json', results);
+    showToast('Results exported successfully.', 'success');
+  };
+
+  const showToast = (message, severity = 'success') => {
+  setToast({
+    open: true,
+    severity,
+    message,
+  });
+};
+
+  const handleCloseToast = (_, reason) => {
+    if (reason === 'clickaway') return;
+
+    setToast((prev) => ({
+      ...prev,
+      open: false,
+    }));
   };
 
   const currentTokens = useMemo(() => currentItem?.tokens || [], [currentItem]);
@@ -100,10 +128,6 @@ export default function App() {
         <Stack spacing={3}>
           <ModeSelector mode={mode} onChange={handleModeChange} />
 
-          {samplesError ? <Alert severity="error">{samplesError}</Alert> : null}
-          {recorderError ? <Alert severity="error">{recorderError}</Alert> : null}
-          {transcribeError ? <Alert severity="error">{transcribeError}</Alert> : null}
-          <StatusBanner severity="success" message={successMessage} />
 
           <Grid container spacing={3}>
             <Grid item xs={12} md={8}>
@@ -181,6 +205,21 @@ export default function App() {
             </Grid>
           </Grid>
         </Stack>
+            <Snackbar
+                open={toast.open}
+                autoHideDuration={4000}
+                onClose={handleCloseToast}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+              >
+                <Alert
+                  onClose={handleCloseToast}
+                  severity={toast.severity}
+                  variant="filled"
+                  sx={{ width: '100%' }}
+                >
+                  {toast.message}
+                </Alert>
+            </Snackbar>
       </Container>
     </Box>
   );
