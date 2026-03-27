@@ -6,36 +6,57 @@ export async function transcribeWithKhaya(audioBlob, language = 'tw') {
     throw new Error('Khaya API environment variables are missing.');
   }
 
-  const supportedLanguages = ['tw', 'gaa', 'dag', 'yo', 'ee', 'ki', 'ha'];
-  if (!supportedLanguages.includes(language)) {
-    throw new Error(`Unsupported language code: ${language}`);
+  const response = await fetch(
+    `${apiBaseUrl}/asr/v1/transcribe?language=${encodeURIComponent(language)}`,
+    {
+      method: 'POST',
+      headers: {
+        'Ocp-Apim-Subscription-Key': apiKey,
+        'Content-Type': audioBlob.type || 'audio/webm',
+      },
+      body: audioBlob,
+    }
+  );
+
+  const rawText = await response.text();
+
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    throw new Error(`API did not return valid JSON. Response: ${rawText}`);
   }
-
-  const requestUrl = `${apiBaseUrl}/asr/v1/transcribe?language=${encodeURIComponent(language)}`;
-
-  const response = await fetch(requestUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'audio/mpeg',
-      'Ocp-Apim-Subscription-Key': apiKey,
-    },
-    body: audioBlob,
-  });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || 'Khaya API transcription failed.');
+    throw new Error(
+      (typeof data === 'object' && data !== null && (data.message || data.error)) ||
+      rawText ||
+      'Khaya API transcription failed.'
+    );
   }
 
-  const data = await response.json();
+  let transcript = '';
 
-  return {
-    transcript:
+  if (typeof data === 'string') {
+    transcript = data;
+  } else if (typeof data === 'object' && data !== null) {
+    transcript =
       data.transcript ||
       data.text ||
       data.result ||
       data.prediction ||
-      '',
+      data.data?.transcript ||
+      data.data?.text ||
+      data.output ||
+      '';
+  }
+
+  if (!transcript || !String(transcript).trim()) {
+    throw new Error(`No transcript was returned from the API. Raw response: ${rawText}`);
+  }
+
+  return {
+    transcript: String(transcript).trim(),
     raw: data,
   };
 }
