@@ -12,10 +12,13 @@ export default function useEvaluationSession() {
   const [mode, setMode] = useState(MODES.PRE_RECORDED);
   const [samples, setSamples] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentItem, setCurrentItem] = useState(null);
+  const [preRecordedItem, setPreRecordedItem] = useState(null); 
+  const [microphoneItem, setMicrophoneCurrentItem] = useState(null);
   const [results, setResults] = useState([]);
   const [loadingSamples, setLoadingSamples] = useState(true);
   const [samplesError, setSamplesError] = useState('');
+
+  const currentItem = mode === MODES.PRE_RECORDED ? preRecordedItem : microphoneItem;
 
   useEffect(() => {
     async function loadSamples() {
@@ -49,7 +52,7 @@ export default function useEvaluationSession() {
         setSamples(formattedSamples);
 
         if (formattedSamples.length > 0) {
-          setCurrentItem({
+          setPreRecordedItem({
             ...formattedSamples[0],
             mode: MODES.PRE_RECORDED,
             tokens: tokenizeTranscript(formattedSamples[0].transcript),
@@ -85,31 +88,31 @@ export default function useEvaluationSession() {
     const existingResult = results.find((item) => item.id === sample.id);
 
     setCurrentIndex(index);
-    setCurrentItem({
-      ...sample,
-      mode: MODES.PRE_RECORDED,
-      tokens: buildTokensWithSavedSelections(sample, existingResult),
-    });
+      setPreRecordedItem({
+        ...sample,
+        mode: MODES.PRE_RECORDED,
+        tokens: buildTokensWithSavedSelections(sample, existingResult),
+      });
   };
 
   const setMicrophoneItem = ({ transcript, audioUrl }) => {
     const id = `mic-${Date.now()}`;
     const existingResult = results.find((item) => item.id === id);
 
-    setCurrentItem({
-      id,
-      title: 'Live Microphone Transcript',
-      audioUrl,
-      transcript,
-      mode: MODES.MICROPHONE,
-      tokens: buildTokensWithSavedSelections(
-        {
-          id,
-          transcript,
-        },
-        existingResult
-      ),
-    });
+  setMicrophoneCurrentItem({
+    id,
+    title: 'Live Microphone Transcript',
+    audioUrl,
+    transcript,
+    mode: MODES.MICROPHONE,
+    tokens: buildTokensWithSavedSelections(
+      {
+        id,
+        transcript,
+      },
+      existingResult
+    ),
+  });
   };
 
   const persistCurrentItem = (updatedItem) => {
@@ -131,8 +134,9 @@ export default function useEvaluationSession() {
     });
   };
 
-  const toggleWord = (tokenId) => {
-    setCurrentItem((prev) => {
+const toggleWord = (tokenId) => {
+  if (mode === MODES.PRE_RECORDED) {
+    setPreRecordedItem((prev) => {
       if (!prev) return prev;
 
       const updatedItem = {
@@ -143,10 +147,25 @@ export default function useEvaluationSession() {
       persistCurrentItem(updatedItem);
       return updatedItem;
     });
-  };
+    return;
+  }
 
-  const clearSelections = () => {
-    setCurrentItem((prev) => {
+  setMicrophoneCurrentItem((prev) => {
+    if (!prev) return prev;
+
+    const updatedItem = {
+      ...prev,
+      tokens: toggleTokenSelection(prev.tokens, tokenId),
+    };
+
+    persistCurrentItem(updatedItem);
+    return updatedItem;
+  });
+};
+
+const clearSelections = () => {
+  if (mode === MODES.PRE_RECORDED) {
+    setPreRecordedItem((prev) => {
       if (!prev) return prev;
 
       const updatedItem = {
@@ -157,7 +176,21 @@ export default function useEvaluationSession() {
       persistCurrentItem(updatedItem);
       return updatedItem;
     });
-  };
+    return;
+  }
+
+  setMicrophoneCurrentItem((prev) => {
+    if (!prev) return prev;
+
+    const updatedItem = {
+      ...prev,
+      tokens: clearTokenSelections(prev.tokens),
+    };
+
+    persistCurrentItem(updatedItem);
+    return updatedItem;
+  });
+};
 
   const nextSample = () => {
     if (mode !== MODES.PRE_RECORDED) return;
@@ -173,36 +206,38 @@ export default function useEvaluationSession() {
     }
   };
 
-  useEffect(() => {
-    if (
-      mode === MODES.PRE_RECORDED &&
-      samples.length > 0 &&
-      (!currentItem || currentItem.mode !== MODES.PRE_RECORDED)
-    ) {
-      loadPreRecordedSample(currentIndex);
-    }
-  }, [mode, samples]);
+useEffect(() => {
+  if (
+    mode === MODES.PRE_RECORDED &&
+    samples.length > 0 &&
+    !preRecordedItem
+  ) {
+    loadPreRecordedSample(currentIndex);
+  }
+}, [mode, samples, preRecordedItem, currentIndex]);
 
   const selectedCount = useMemo(() => {
     if (!currentItem?.tokens) return 0;
     return getSelectedTokens(currentItem.tokens).length;
   }, [currentItem]);
 
-  return {
-    mode,
-    setMode,
-    samples,
-    currentIndex,
-    currentItem,
-    results,
-    loadingSamples,
-    samplesError,
-    selectedCount,
-    loadPreRecordedSample,
-    setMicrophoneItem,
-    toggleWord,
-    clearSelections,
-    nextSample,
-    previousSample,
-  };
+return {
+  mode,
+  setMode,
+  samples,
+  currentIndex,
+  currentItem,
+  preRecordedItem,
+  microphoneItem,
+  results,
+  loadingSamples,
+  samplesError,
+  selectedCount,
+  loadPreRecordedSample,
+  setMicrophoneItem,
+  toggleWord,
+  clearSelections,
+  nextSample,
+  previousSample,
+};
 }
