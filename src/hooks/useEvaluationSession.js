@@ -45,7 +45,7 @@ export default function useEvaluationSession() {
         const formattedSamples = parsed.data.map((row, index) => ({
           id: row.file ? String(row.file).trim().replace('.wav', '') : `sample-${index + 1}`,
           title: row.file ? String(row.file).trim() : `Sample ${index + 1}`,
-          audioUrl: `/audio/${String(row.file).trim()}`,
+          audioUrl: `https://huggingface.co/datasets/saanimustaf/asr-evaluation-audio/resolve/main/${String(row.file).trim()}`,
           transcript: row.text || '',
         }));
 
