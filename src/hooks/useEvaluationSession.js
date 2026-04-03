@@ -19,6 +19,7 @@ export default function useEvaluationSession() {
   const [samplesError, setSamplesError] = useState('');
 
   const currentItem = mode === MODES.PRE_RECORDED ? preRecordedItem : microphoneItem;
+  const audioBaseURL = import.meta.env.AUDIO_BASE_URL;
 
   useEffect(() => {
     async function loadSamples() {
@@ -45,7 +46,7 @@ export default function useEvaluationSession() {
         const formattedSamples = parsed.data.map((row, index) => ({
           id: row.file ? String(row.file).trim().replace('.wav', '') : `sample-${index + 1}`,
           title: row.file ? String(row.file).trim() : `Sample ${index + 1}`,
-          audioUrl: `https://huggingface.co/datasets/saanimustaf/asr-evaluation-audio/resolve/main/${String(row.file).trim()}`,
+          audioUrl: `${audioBaseURL}/${String(row.file).trim()}`,
           transcript: row.text || '',
         }));
 
