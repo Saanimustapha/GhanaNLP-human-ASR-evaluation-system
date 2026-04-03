@@ -19,7 +19,7 @@ export default function useEvaluationSession() {
   const [samplesError, setSamplesError] = useState('');
 
   const currentItem = mode === MODES.PRE_RECORDED ? preRecordedItem : microphoneItem;
-  const audioBaseURL = import.meta.env.AUDIO_BASE_URL;
+  const audioBaseURL = import.meta.env.VITE_AUDIO_BASE_URL;
 
   useEffect(() => {
     async function loadSamples() {
